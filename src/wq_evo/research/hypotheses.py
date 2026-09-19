@@ -58,12 +58,24 @@ _TRAIT_FAMILY = {
 
 
 class HypothesisEngine:
-    """Generate cross-domain research hypotheses without touching /simulations.
+    """Generate diverse, researchable cross-domain hypotheses without simulation.
 
-    The engine searches for complementary data traits rather than blindly
-    enumerating fields. Every generated expression still must pass the live
-    validator before simulation.
+    Design rules:
+    - never pair a field with itself;
+    - never emit the same field-pair/mechanism twice;
+    - use canonical semantic domains to collapse aliases such as sentiment/text_nlp;
+    - prefer multiple high-quality fields over repeatedly selecting the first field;
+    - avoid generic cross-unit ratios;
+    - measure novelty against the existing population, not as proof of future alpha quality.
     """
+
+    _CANONICAL_TRAIT = {
+        "text_nlp": "sentiment",
+        "social_attention": "social_media",
+        "institutional_positioning": "ownership",
+        "earnings": "earnings",
+        "expectation_revision": "analyst_expectations",
+    }
 
     def __init__(self, fields: Iterable[dict[str, Any]], existing_expressions: Iterable[str] = ()):
         self.fields = [x for x in fields if str(x.get("id") or "")]
@@ -74,116 +86,214 @@ class HypothesisEngine:
             try:
                 self.existing_genomes.append(build_genome(expression, self.fields))
             except ExpressionSyntaxError:
-                # Alpha endpoints can contain explanatory/prose strings in places
-                # where executable code is absent. Never make research planning crash.
                 self.unparsed_existing.append(expression)
+        self._trait_index = self._build_trait_index()
+
+    def _build_trait_index(self) -> dict[str, list[dict[str, Any]]]:
+        index: dict[str, list[dict[str, Any]]] = {}
+        for row in self.fields:
+            raw_traits = infer_field_traits(row)
+            canonical = {
+                self._CANONICAL_TRAIT.get(t, t)
+                for t in raw_traits
+            }
+            for trait in canonical:
+                index.setdefault(trait, []).append(row)
+
+        for trait, rows in index.items():
+            rows.sort(key=self._field_sort_key)
+        return index
+
+    @staticmethod
+    def _field_sort_key(row: dict[str, Any]) -> tuple[float, float, float, str, str]:
+        coverage = _float(row.get("coverage")) or 0.0
+        date_coverage = _float(row.get("dateCoverage") or row.get("date_coverage")) or 0.0
+        alpha_count = max(0.0, _float(row.get("alphaCount") or row.get("alpha_count")) or 0.0)
+        text = " ".join(
+            str(row.get(k) or "")
+            for k in ("id", "category", "dataset", "description", "name")
+        ).lower()
+        # Metadata quality first; alphaCount is only a weak tie-breaker.
+        return (-coverage, -date_coverage, alpha_count, text, str(row.get("id")))
+
+    def _eligible_fields(self, trait: str, limit: int = 12) -> list[dict[str, Any]]:
+        canonical = self._CANONICAL_TRAIT.get(trait, trait)
+        rows = self._trait_index.get(canonical, [])
+        return [x for x in rows if str(x.get("type") or "MATRIX").upper() == "MATRIX"][:limit]
 
     def _trait_counts(self) -> dict[str, int]:
         counts: dict[str, int] = {}
         for genome in self.existing_genomes:
-            for trait in genome.semantic_traits:
+            canonical = {self._CANONICAL_TRAIT.get(t, t) for t in genome.semantic_traits}
+            for trait in canonical:
                 counts[trait] = counts.get(trait, 0) + 1
         return counts
 
-    def _eligible_fields(self, trait: str, limit: int = 12) -> list[dict[str, Any]]:
-        rows = []
+    def _all_traits(self) -> list[str]:
+        traits: set[str] = set()
         for row in self.fields:
-            text = " ".join(str(row.get(k) or "") for k in ("id", "category", "dataset", "description", "name")).lower()
-            if trait not in infer_field_traits(row):
-                # build_genome only recognizes a field when it is in the catalog;
-                # a direct metadata fallback keeps this path robust.
-                continue
-            if str(row.get("type") or "MATRIX").upper() != "MATRIX":
-                continue
-            coverage = _float(row.get("coverage"))
-            date_coverage = _float(row.get("dateCoverage") or row.get("date_coverage"))
-            alpha_count = _float(row.get("alphaCount") or row.get("alpha_count"))
-            quality = 0.55 * (coverage if coverage is not None else 0.0) + 0.35 * (date_coverage if date_coverage is not None else 0.0)
-            # alphaCount is deliberately only a small tie-breaker, never proof of novelty.
-            quality += 0.10 / (1.0 + max(0.0, alpha_count or 0.0))
-            rows.append((quality, text, row))
-        rows.sort(key=lambda x: (-x[0], x[1]))
-        return [x[2] for x in rows[:limit]]
+            traits.update(self._CANONICAL_TRAIT.get(t, t) for t in infer_field_traits(row))
+        return sorted(traits)
+
+    @staticmethod
+    def _pair_quality(a: dict[str, Any], b: dict[str, Any]) -> float:
+        # Reward coverage and history alignment, but penalize the temptation to
+        # use two nearly identical fields from the same dataset.
+        ac = _float(a.get("coverage")) or 0.0
+        ad = _float(a.get("dateCoverage") or a.get("date_coverage")) or 0.0
+        bc = _float(b.get("coverage")) or 0.0
+        bd = _float(b.get("dateCoverage") or b.get("date_coverage")) or 0.0
+        same_dataset = str(a.get("dataset") or "") == str(b.get("dataset") or "")
+        return 0.4 * min(ac, bc) + 0.4 * min(ad, bd) + (0.2 if not same_dataset else 0.0)
+
+    def _field_pair_pool(
+        self,
+        trait_a: str,
+        trait_b: str,
+        *,
+        per_trait: int = 8,
+        max_pairs: int = 20,
+    ) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+        left = self._eligible_fields(trait_a, per_trait)
+        right = self._eligible_fields(trait_b, per_trait)
+        pairs: list[tuple[float, str, dict[str, Any], dict[str, Any]]] = []
+
+        for a in left:
+            for b in right:
+                aid, bid = str(a["id"]), str(b["id"])
+                if aid == bid:
+                    continue
+                # Avoid pretending two fields from the same dataset are a genuinely
+                # cross-domain experiment unless no alternative pair exists later.
+                score = self._pair_quality(a, b)
+                key = f"{min(aid,bid)}|{max(aid,bid)}"
+                pairs.append((score, key, a, b))
+
+        pairs.sort(key=lambda x: (-x[0], x[1]))
+        return [(a, b) for _, _, a, b in pairs[:max_pairs]]
+
+    def _trait_exposure(self, trait: str) -> int:
+        return self._trait_counts().get(trait, 0)
 
     def plan(self, n: int = 20) -> list[ResearchHypothesis]:
         if n <= 0 or not self.fields:
             return []
 
-        trait_counts = self._trait_counts()
-        all_traits = sorted({
-            trait
-            for row in self.fields
-            for trait in infer_field_traits(row)
-        })
-        # Prefer traits with low current alpha exposure, but keep price_volume as a
-        # control/reference family so every campaign does not drift into exotic data.
-        ranked_traits = sorted(
-            all_traits,
-            key=lambda t: (trait_counts.get(t, 0), t),
-        )
+        traits = self._all_traits()
+        # Low exposure gets priority, but every trait has to compete on actual
+        # field availability and pair diversity.
+        traits.sort(key=lambda t: (self._trait_exposure(t), t))
 
         hypotheses: list[ResearchHypothesis] = []
-        used_pairs: set[tuple[str, str]] = set()
-        for a, b in combinations(ranked_traits, 2):
-            pair = tuple(sorted((a, b)))
-            if pair in used_pairs:
-                continue
-            # Avoid duplicate concepts from two naming aliases.
-            if _TRAIT_FAMILY.get(a, a) == _TRAIT_FAMILY.get(b, b):
-                continue
-            fa = self._eligible_fields(a, limit=5)
-            fb = self._eligible_fields(b, limit=5)
-            if not fa or not fb:
-                continue
+        seen_expressions: set[str] = set()
+        seen_pairs: set[tuple[str, str, str]] = set()
 
-            field_a = str(fa[0]["id"])
-            field_b = str(fb[0]["id"])
+        mechanisms = (
+            (
+                "cross_domain_interaction",
+                "medium",
+                lambda a, b: f"rank(ts_zscore({a},60)*ts_zscore({b},60))",
+                lambda ta, tb: f"Test whether joint extremes in {ta} and {tb} contain information beyond either input alone.",
+            ),
+            (
+                "cross_domain_spread",
+                "medium",
+                lambda a, b: f"rank(ts_zscore({a},60)-ts_zscore({b},60))",
+                lambda ta, tb: f"Test whether relative disagreement between standardized {ta} and {tb} carries information.",
+            ),
+            (
+                "cross_domain_co_movement",
+                "medium",
+                lambda a, b: f"rank(ts_corr(rank({a}),rank({b}),20))",
+                lambda ta, tb: f"Test whether {ta} and {tb} co-move within securities over a 20-session horizon.",
+            ),
+        )
 
-            # Three distinct mechanism templates rather than parameter sweeps.
-            templates = [
-                (
-                    f"rank(ts_corr(rank({field_a}),rank({field_b}),20))",
-                    "cross_domain_co_movement",
-                    "medium",
-                    f"Test whether changes in {a} and {b} exhibit useful cross-sectional co-movement at a 20-session horizon.",
-                ),
-                (
-                    f"rank(ts_zscore({field_a},60)*ts_zscore({field_b},60))",
-                    "cross_domain_interaction",
-                    "medium",
-                    f"Test whether joint extremes in {a} and {b} contain information beyond either input alone.",
-                ),
-                (
-                    f"rank({field_a}/(abs({field_b})+0.001))",
-                    "relative_information_intensity",
-                    "short_medium",
-                    f"Test whether relative magnitude between {a} and {b} is informative rather than the level of either series.",
-                ),
-            ]
+        # Round-robin across trait pairs and field pairs so the campaign explores
+        # the research space instead of filling all 20 slots with one anchor field.
+        for a_i, trait_a in enumerate(traits):
+            for trait_b in traits[a_i + 1:]:
+                if self._CANONICAL_TRAIT.get(trait_a, trait_a) == self._CANONICAL_TRAIT.get(trait_b, trait_b):
+                    continue
+                field_pairs = self._field_pair_pool(trait_a, trait_b)
+                if not field_pairs:
+                    continue
 
-            for expr, mechanism, horizon, rationale in templates:
-                genome = build_genome(expr, self.fields)
-                nov = novelty_score(genome, self.existing_genomes).overall
-                hid = hashlib.sha1(f"{a}|{b}|{mechanism}|{field_a}|{field_b}".encode()).hexdigest()[:12]
-                hypotheses.append(
-                    ResearchHypothesis(
-                        hypothesis_id=f"H-{hid}",
-                        thesis=f"{_TRAIT_FAMILY.get(a,a)} × {_TRAIT_FAMILY.get(b,b)}",
-                        mechanism=mechanism,
-                        fields=(field_a, field_b),
-                        traits=tuple(sorted((a, b))),
-                        expression=expr,
-                        expected_horizon=horizon,
-                        rationale=rationale,
-                        novelty_prior=nov,
-                    )
-                )
-            used_pairs.add(pair)
-            if len(hypotheses) >= n * 3:
+                for pair_i, (field_a, field_b) in enumerate(field_pairs):
+                    aid, bid = str(field_a["id"]), str(field_b["id"])
+                    for mech_i, (mechanism, horizon, expr_fn, rationale_fn) in enumerate(mechanisms):
+                        key = (min(aid, bid), max(aid, bid), mechanism)
+                        if key in seen_pairs:
+                            continue
+                        expr = expr_fn(aid, bid)
+                        canonical_expr = "".join(expr.split())
+                        if canonical_expr in seen_expressions:
+                            continue
+
+                        genome = build_genome(expr, self.fields)
+                        nov = novelty_score(genome, self.existing_genomes).overall
+                        hid = hashlib.sha1(
+                            f"{trait_a}|{trait_b}|{mechanism}|{aid}|{bid}".encode()
+                        ).hexdigest()[:12]
+                        hypotheses.append(
+                            ResearchHypothesis(
+                                hypothesis_id=f"H-{hid}",
+                                thesis=f"{trait_a} × {trait_b}",
+                                mechanism=mechanism,
+                                fields=(aid, bid),
+                                traits=tuple(sorted((trait_a, trait_b))),
+                                expression=expr,
+                                expected_horizon=horizon,
+                                rationale=rationale_fn(trait_a, trait_b),
+                                novelty_prior=nov,
+                            )
+                        )
+                        seen_pairs.add(key)
+                        seen_expressions.add(canonical_expr)
+                        if len(hypotheses) >= n * 4:
+                            break
+                    if len(hypotheses) >= n * 4:
+                        break
+                if len(hypotheses) >= n * 4:
+                    break
+            if len(hypotheses) >= n * 4:
                 break
 
-        hypotheses.sort(key=lambda h: (-h.novelty_prior, h.hypothesis_id))
-        return hypotheses[:n]
+        # First-order ranking by novelty, then deterministic diversity by field pair
+        # and mechanism. The output itself is a campaign shortlist, not a submission rank.
+        hypotheses.sort(
+            key=lambda h: (
+                -h.novelty_prior,
+                h.mechanism,
+                h.traits,
+                h.fields,
+                h.hypothesis_id,
+            )
+        )
+
+        selected: list[ResearchHypothesis] = []
+        seen_trait_pairs: set[tuple[str, str]] = set()
+        seen_field_ids: set[str] = set()
+        seen_mechanisms: set[str] = set()
+
+        # Greedy diversity pass: choose high-novelty hypotheses while preventing the
+        # exact concentration problem observed in the first 20-hypothesis output.
+        for h in hypotheses:
+            pair = tuple(h.traits)
+            novelty_bonus = (
+                (1 if pair not in seen_trait_pairs else 0)
+                + (1 if h.mechanism not in seen_mechanisms else 0)
+                + (1 if not (set(h.fields) & seen_field_ids) else 0)
+            )
+            if novelty_bonus > 0 or len(selected) < max(1, n // 3):
+                selected.append(h)
+                seen_trait_pairs.add(pair)
+                seen_mechanisms.add(h.mechanism)
+                seen_field_ids.update(h.fields)
+            if len(selected) >= n:
+                break
+
+        return selected
 
 
 def _float(x: Any) -> float | None:
