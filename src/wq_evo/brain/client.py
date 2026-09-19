@@ -54,6 +54,20 @@ class BrainClient:
             "User-Agent": "brain-evoforge/0.1",
         })
         self._did_relogin = False
+        self._session_adopted = False
+
+    def adopt_authenticated_session(self, session: requests.Session) -> None:
+        """Adopt an already Persona-verified BRAIN session for this process.
+
+        Intended for local/Colab execution after the user completes the normal
+        BRAIN Persona flow. The session remains in memory and is never persisted
+        by EvoForge.
+        """
+        if not isinstance(session, requests.Session):
+            raise TypeError("session must be a requests.Session")
+        self.session = session
+        self._session_adopted = True
+        self._did_relogin = False
 
     def _retry_after(self, headers: dict[str, str], default: float) -> float:
         raw = headers.get("Retry-After") or headers.get("retry-after")
@@ -125,11 +139,14 @@ class BrainClient:
         raise RetryableBrainError(f"request failed after retries: {method} {url}")
 
     def login(self, *, force: bool = False) -> dict[str, Any]:
+        if self._session_adopted and not force:
+            return {"reused_authenticated_session": True}
         env = self.request("POST", "/authentication", allow_401_relogin=not force)
         if env.status not in (200, 201):
             raise PermissionErrorBrain(f"authentication failed: HTTP {env.status} {env.text[:500]}")
         if isinstance(env.body, dict) and env.body.get("inquiry"):
             raise PersonaRequiredError(str(env.body["inquiry"]))
+        self._session_adopted = False
         return env.body if isinstance(env.body, dict) else {}
 
     def get_json(self, path: str, *, params: dict[str, Any] | None = None) -> dict[str, Any] | list[Any]:
