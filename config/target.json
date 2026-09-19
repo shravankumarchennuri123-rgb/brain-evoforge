@@ -1,0 +1,6 @@
+{
+  "regular": 4,
+  "super": 1,
+  "only_new_this_run": true,
+  "require_active_after_submit": true
+}

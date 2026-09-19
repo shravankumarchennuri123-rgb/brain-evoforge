@@ -1,0 +1,20 @@
+[Unit]
+Description=WorldQuant BRAIN EvoForge Autonomous Research Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/brain-evoforge
+EnvironmentFile=/opt/brain-evoforge/.env
+ExecStart=/opt/brain-evoforge/.venv/bin/wq-evoforge run
+Restart=always
+RestartSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/brain-evoforge/data /opt/brain-evoforge/logs
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,13 @@
+{
+  "write_armed_env": "WQ_WRITE_ARMED",
+  "unknown_budget_allowed_env": "WQ_ALLOW_UNKNOWN_SUBMISSION_BUDGET",
+  "forbidden_text_patterns": [
+    "import ", "__", "http://", "https://", "exec(", "eval(", "os.", "subprocess", "system("
+  ],
+  "max_expression_chars": 300,
+  "max_nesting_depth": 12,
+  "max_numeric_constants": 12,
+  "max_candidate_age_hours": 72,
+  "max_submit_retries": 2,
+  "max_sim_retries": 4
+}

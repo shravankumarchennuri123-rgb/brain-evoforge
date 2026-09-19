@@ -1,0 +1,20 @@
+.env
+data/*.sqlite3
+data/*.db
+logs/*.log
+__pycache__/
+.pytest_cache/
+*.pyc
+.venv/
+WQ_SUPER_TEMPLATE_JSON
+
+# Runtime / private research state
+cookies*.json
+*.sqlite
+*.sqlite3
+*.db
+*.log
+state/
+research_state/
+alpha_db.json
+*.pkl
