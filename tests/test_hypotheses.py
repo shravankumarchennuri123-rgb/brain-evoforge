@@ -20,3 +20,15 @@ def test_plan_is_deterministic_for_same_inputs():
     a = [h.to_dict() for h in HypothesisEngine(FIELDS).plan(6)]
     b = [h.to_dict() for h in HypothesisEngine(FIELDS).plan(6)]
     assert a == b
+
+
+def test_non_code_existing_record_is_ignored():
+    engine = HypothesisEngine(
+        FIELDS,
+        existing_expressions=[
+            "rank(ts_delta(price_a,5))",
+            "If the stock price moved sharply, this is explanatory text.",
+        ],
+    )
+    assert len(engine.existing_genomes) == 1
+    assert len(engine.unparsed_existing) == 1
