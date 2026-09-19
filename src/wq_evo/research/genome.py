@@ -97,8 +97,20 @@ def _tokenize(expression: str) -> list[_Token]:
         if not m:
             raise ExpressionSyntaxError(f"Unexpected token at character {pos}: {expression[pos:pos+20]!r}")
         pos = m.end()
-        kind = "NUMBER" if m.group("number") else "IDENT" if m.group("ident") else m.lastgroup.upper()
-        tokens.append(_Token(kind, m.group(m.lastgroup)))
+        if m.group("number") is not None:
+            tokens.append(_Token("NUMBER", m.group("number")))
+        elif m.group("ident") is not None:
+            tokens.append(_Token("IDENT", m.group("ident")))
+        elif m.group("op") is not None:
+            tokens.append(_Token("OP", m.group("op")))
+        elif m.group("lpar") is not None:
+            tokens.append(_Token("LPAR", m.group("lpar")))
+        elif m.group("rpar") is not None:
+            tokens.append(_Token("RPAR", m.group("rpar")))
+        elif m.group("comma") is not None:
+            tokens.append(_Token("COMMA", m.group("comma")))
+        else:
+            raise ExpressionSyntaxError(f"Tokenizer matched an empty token at character {pos}")
     tokens.append(_Token("EOF", ""))
     return tokens
 
