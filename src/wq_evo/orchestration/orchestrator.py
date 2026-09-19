@@ -93,13 +93,19 @@ class EvoForge:
 
     def _discover_fields(self, profile: ResearchProfile) -> list[dict[str, Any]]:
         try:
-            return self.client.data_fields_all(
+            fields = self.client.data_fields_all(
                 region=profile.region, universe=profile.universe,
                 delay=profile.delay, instrument_type=profile.instrument_type,
             )
+            if not fields:
+                raise BrainError("data-field discovery returned an empty catalog")
+            return fields
         except Exception as exc:
-            self.db.add_event("WARNING", "field_discovery_failed", {"error": str(exc)})
-            return []
+            self.db.add_event("ERROR", "field_discovery_failed", {
+                "error": type(exc).__name__,
+                "message": str(exc)[:500],
+            })
+            raise
 
     def _maybe_refresh_discovery(self) -> None:
         if self.profile is None or time.monotonic() - self._last_discovery >= self._rediscovery_seconds:
