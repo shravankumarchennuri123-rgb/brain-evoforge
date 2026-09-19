@@ -1,0 +1,55 @@
+name: One Alpha Live Test
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: brain-one-alpha-live-test
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  live-test-one:
+    name: Live test — exactly one regular alpha
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: brain-live-one-alpha
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev]'
+
+      - name: Compile
+        run: python -m compileall -q src tests
+
+      - name: Unit tests
+        run: pytest -q --disable-warnings --maxfail=1
+
+      - name: Run exactly one guarded live test
+        env:
+          WQ_BRAIN_EMAIL: ${{ secrets.WQ_BRAIN_EMAIL }}
+          WQ_BRAIN_PASSWORD: ${{ secrets.WQ_BRAIN_PASSWORD }}
+          WQ_WRITE_ARMED: 'true'
+          WQ_ONE_ALPHA_WRITE_ARMED: 'true'
+          WQ_ALLOW_UNKNOWN_SUBMISSION_BUDGET: 'false'
+          WQ_TARGET_REGULAR: '1'
+          WQ_TARGET_SUPER: '0'
+          WQ_MAX_CANDIDATES_PER_CYCLE: '1'
+          WQ_MAX_POLL_SECONDS: '900'
+          WQ_IDLE_SECONDS: '5'
+        run: |
+          python -m wq_evo live-test-one
