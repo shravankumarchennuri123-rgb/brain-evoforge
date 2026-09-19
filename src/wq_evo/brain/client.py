@@ -199,18 +199,59 @@ class BrainClient:
         body = self.get_json("/data-fields", params=params)
         return body if isinstance(body, dict) else {"results": []}
 
-    def data_fields_all(self, *, region: str, universe: str, delay: int, instrument_type: str = "EQUITY", max_rows: int = 5000) -> list[dict[str, Any]]:
+    def data_fields_all(self, *, region: str, universe: str, delay: int, instrument_type: str = "EQUITY",
+                        max_rows: int = 5000, page_size: int = 50) -> list[dict[str, Any]]:
+        """Fetch data fields using a live-safe page size.
+        
+        Some BRAIN environments return an empty result set for large page sizes
+        even though smaller requests succeed. The client therefore defaults to
+        50 and uses the server-reported total count when available.
+        """
+        if page_size < 1 or page_size > 50:
+            raise ValueError("page_size must be between 1 and 50 for safe BRAIN field pagination")
+
         rows: list[dict[str, Any]] = []
         offset = 0
-        while True:
-            body = self.data_fields(region=region, universe=universe, delay=delay, instrument_type=instrument_type,
-                                    offset=offset)
-            batch = body.get("results", [])
-            rows.extend(x for x in batch if isinstance(x, dict))
-            if len(rows) >= max_rows or len(batch) < 200:
+        total: int | None = None
+
+        while len(rows) < max_rows:
+            body = self.data_fields(
+                region=region,
+                universe=universe,
+                delay=delay,
+                instrument_type=instrument_type,
+                limit=page_size,
+                offset=offset,
+            )
+            batch = body.get("results", []) if isinstance(body, dict) else []
+            if not isinstance(batch, list):
+                raise BrainError("data-fields returned a non-list results payload")
+
+            if not batch:
+                if offset == 0:
+                    raise BrainError(
+                        f"data-fields returned no results for page_size={page_size}; "
+                        "refusing to treat field discovery as empty"
+                    )
                 break
-            offset += 200
-        return rows
+
+            rows.extend(x for x in batch if isinstance(x, dict))
+
+            raw_total = body.get("count") if isinstance(body, dict) else None
+            if total is None and raw_total is not None:
+                try:
+                    total = int(raw_total)
+                except (TypeError, ValueError):
+                    total = None
+
+            if total is not None and offset + len(batch) >= total:
+                break
+            if len(batch) < page_size:
+                break
+
+            offset += page_size
+
+        return rows[:max_rows]
 
     def create_simulation(self, payload: dict[str, Any]) -> str:
         env = self.post_json("/simulations", payload)
