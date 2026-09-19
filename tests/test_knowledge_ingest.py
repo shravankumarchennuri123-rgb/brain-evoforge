@@ -13,7 +13,10 @@ def test_seed_sources_and_records_are_loadable(tmp_path: Path):
 
     sources = load_sources(source_file)
     assert len(sources) >= 6
-    assert all(source.authority_level == 2 for source in sources)
+    official = [source for source in sources if source.source_type in {"worldquant_official", "brain_learn", "webinar"}]
+    community = [source for source in sources if source.source_type == "community"]
+    assert official and all(source.authority_level == 2 for source in official)
+    assert community and all(source.authority_level == 4 for source in community)
 
     source_registry = SourceRegistry(tmp_path / "sources.json")
     knowledge_registry = KnowledgeRegistry(tmp_path / "knowledge.json")
