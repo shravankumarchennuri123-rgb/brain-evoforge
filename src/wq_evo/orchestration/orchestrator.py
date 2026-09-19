@@ -37,6 +37,7 @@ class EvoForge:
     discover -> generate -> static validate -> simulate -> inspect -> correlation gate
     -> submit -> verify -> learn -> persist -> repeat.
     """
+
     def __init__(self, db: StateDB, client: BrainClient):
         self.db = db
         self.client = client
@@ -126,9 +127,240 @@ class EvoForge:
 
         return {"state": "CYCLE_COMPLETE", "targets": self.target_status()}
 
+    def live_test_one(self) -> dict[str, Any]:
+        """Run exactly one regular candidate through the live guarded pipeline.
+
+        This mode is intentionally bounded:
+        - one bootstrap
+        - one candidate
+        - one simulation
+        - at most one POST /submit
+        - stop immediately after the submission becomes terminal
+        It never loops into the full research engine.
+        """
+        self.bootstrap()
+
+        # Fix the generator bug in the general engine as part of the live-test path:
+        # the generator receives the live operator catalog, not an empty list.
+        generator = CandidateGenerator(
+            [{"name": op} for op in self.allowed_ops],
+            self.live_fields,
+        )
+        candidates = generator.initial(8)
+
+        existing = self.db.candidates(limit=1000)
+        live_alphas = self.client.list_alphas()
+        live_expr = set()
+        for a in live_alphas:
+            reg = a.get("regular")
+            if isinstance(reg, dict) and reg.get("code"):
+                live_expr.add(str(reg["code"]).replace(" ", ""))
+            elif isinstance(reg, str):
+                live_expr.add(reg.replace(" ", ""))
+
+        chosen: tuple[str, str, str, str] | None = None
+        existing_fp = {x.fingerprint for x in existing}
+        for expr, family, hypothesis, strategy in candidates:
+            vr = validate_expression(
+                expr,
+                allowed_operators=self.allowed_ops,
+                allowed_fields=self.allowed_fields,
+            )
+            fp = fingerprint(expr, self._regular_settings(), Lane.REGULAR.value)
+            if vr.ok and expr.replace(" ", "") not in live_expr and fp not in existing_fp:
+                chosen = (expr, family, hypothesis, strategy)
+                break
+
+        if chosen is None:
+            return {
+                "ok": False,
+                "stage": "candidate_generation",
+                "reason": "No locally valid, non-duplicate seed survived the live operator/field grammar.",
+            }
+
+        expr, family, hypothesis, strategy = chosen
+        cid = str(uuid.uuid4())
+        c = Candidate(
+            id=cid,
+            lane=Lane.REGULAR,
+            expression=expr,
+            settings=self._regular_settings(),
+            fingerprint=fingerprint(expr, self._regular_settings(), Lane.REGULAR.value),
+            hypothesis=hypothesis,
+            family=family,
+            strategy_arm=strategy,
+        )
+        if not self.db.insert_candidate(c):
+            return {"ok": False, "stage": "state", "reason": "Candidate fingerprint already exists."}
+
+        vr = validate_expression(expr, allowed_operators=self.allowed_ops, allowed_fields=self.allowed_fields)
+        c.state = CandidateState.STATIC_VALID
+        self.db.update_candidate(c)
+
+        try:
+            sim_id = self.client.create_simulation({
+                "type": "REGULAR",
+                "settings": c.settings,
+                "regular": c.expression,
+            })
+            c.simulation_id = sim_id
+            self.db.update_candidate(c)
+
+            result = self.client.wait_simulation(sim_id, timeout_seconds=self.max_poll)
+            alpha_id = result.get("alpha")
+            if not alpha_id:
+                c.state = CandidateState.RETRYABLE
+                c.reason = "Simulation completed without an alpha id."
+                self.db.update_candidate(c)
+                return {"ok": False, "stage": "simulation", "candidate_id": cid, "reason": c.reason}
+
+            c.alpha_id = str(alpha_id).rstrip("/").split("/")[-1]
+            alpha = self.client.get_alpha(c.alpha_id)
+            c.metrics = Metrics.from_alpha(alpha)
+            c.state = CandidateState.SIM_DONE
+            self.db.update_candidate(c)
+
+            check_body = self.client.check_alpha(c.alpha_id, timeout_seconds=self.max_poll)
+            check_block = check_body.get("is", {}) if isinstance(check_body, dict) else {}
+            checks = check_block.get("checks") or (alpha.get("is") or {}).get("checks") or []
+            quality_ok, checks2, missing = self._platform_quality_gate({
+                **alpha,
+                "is": {**(alpha.get("is") or {}), "checks": checks},
+            })
+            checks = checks2
+            c.metrics = Metrics.from_alpha({
+                **alpha,
+                "is": {**(alpha.get("is") or {}), "checks": checks},
+            })
+            self.db.update_candidate(c)
+
+            corr_body = self.client.self_correlation(c.alpha_id, timeout_seconds=self.max_poll)
+            c.corr_max = self._corr_max(corr_body)
+            corr_limit = next(
+                (
+                    float(x.get("limit"))
+                    for x in checks
+                    if x.get("name") == "SELF_CORRELATION" and x.get("limit") is not None
+                ),
+                self._corr_fallback,
+            )
+            self.db.update_candidate(c)
+
+            if not quality_ok:
+                c.state = CandidateState.QUALITY_REJECTED
+                c.reason = f"Platform quality gate failed: {missing}"
+                self.db.update_candidate(c)
+                return {
+                    "ok": False,
+                    "stage": "quality_gate",
+                    "candidate_id": cid,
+                    "alpha_id": c.alpha_id,
+                    "metrics": c.metrics.__dict__,
+                    "checks": checks,
+                    "reason": c.reason,
+                }
+
+            if c.corr_max is None or abs(c.corr_max) >= corr_limit:
+                c.state = CandidateState.CORR_REJECTED
+                c.reason = f"Self-correlation gate failed: max={c.corr_max}, limit={corr_limit}"
+                self.db.update_candidate(c)
+                return {
+                    "ok": False,
+                    "stage": "correlation_gate",
+                    "candidate_id": cid,
+                    "alpha_id": c.alpha_id,
+                    "corr_max": c.corr_max,
+                    "corr_limit": corr_limit,
+                    "reason": c.reason,
+                }
+
+            budget_known, budget_remaining = self._submission_budget()
+            one_write_armed = env_bool("WQ_ONE_ALPHA_WRITE_ARMED", False)
+            decision = self.guard.prewrite(
+                budget_known=budget_known,
+                budget_remaining=budget_remaining,
+                target_remaining=max(1, self.reg_target - self.target_status()["regular_done"]),
+                check_results=checks,
+                corr_max=c.corr_max,
+                metrics=c.metrics,
+                corr_limit=corr_limit,
+            )
+            if not one_write_armed:
+                decision = type(decision)(False, tuple(decision.reasons) + (
+                    "one-alpha write switch WQ_ONE_ALPHA_WRITE_ARMED is false",
+                ))
+
+            if not decision.allowed:
+                c.state = CandidateState.SUBMIT_QUEUED
+                c.reason = "; ".join(decision.reasons)
+                self.db.update_candidate(c)
+                return {
+                    "ok": False,
+                    "stage": "write_gate",
+                    "candidate_id": cid,
+                    "alpha_id": c.alpha_id,
+                    "metrics": c.metrics.__dict__,
+                    "corr_max": c.corr_max,
+                    "reasons": list(decision.reasons),
+                }
+
+            # Exactly one submit invocation is allowed in this method.
+            c.state = CandidateState.SUBMIT_PENDING
+            self.db.update_candidate(c)
+            verdict = self.client.submit_alpha(c.alpha_id, timeout_seconds=self.max_poll)
+
+            if verdict.get("accepted") and verdict.get("status") == "ACTIVE":
+                c.state = CandidateState.ACTIVE
+                self.db.update_candidate(c)
+                self.db.increment_done(self._day_key(), Lane.REGULAR)
+                self.db.add_event("INFO", "live_test_one_active", {
+                    "candidate_id": cid, "alpha_id": c.alpha_id, "expression": c.expression,
+                })
+                return {
+                    "ok": True,
+                    "stage": "ACTIVE",
+                    "candidate_id": cid,
+                    "alpha_id": c.alpha_id,
+                    "expression": c.expression,
+                    "metrics": c.metrics.__dict__,
+                    "corr_max": c.corr_max,
+                    "status": "ACTIVE",
+                }
+
+            c.state = CandidateState.SUBMIT_REJECTED if verdict.get("terminal") else CandidateState.UNKNOWN
+            c.reason = str(verdict.get("reason") or verdict.get("status") or "non-terminal submission verdict")
+            self.db.update_candidate(c)
+            return {
+                "ok": False,
+                "stage": "submission",
+                "candidate_id": cid,
+                "alpha_id": c.alpha_id,
+                "status": verdict.get("status"),
+                "reason": c.reason,
+            }
+
+        except PersonaRequiredError as exc:
+            c.state = CandidateState.UNKNOWN
+            c.reason = "Persona/face verification is required; complete it normally, then rerun live-test-one."
+            self.db.update_candidate(c)
+            return {"ok": False, "stage": "authentication", "reason": c.reason, "detail": str(exc)[:300]}
+        except (PermissionErrorBrain, RateLimitError, RetryableBrainError) as exc:
+            c.state = CandidateState.RETRYABLE
+            c.reason = str(exc)
+            self.db.update_candidate(c)
+            return {"ok": False, "stage": "platform", "candidate_id": cid, "reason": c.reason}
+        except BrainError as exc:
+            c.state = CandidateState.UNKNOWN
+            c.reason = str(exc)
+            self.db.update_candidate(c)
+            return {"ok": False, "stage": "platform", "candidate_id": cid, "reason": c.reason}
+
     def _generate_candidates(self) -> None:
         rows = self.live_fields
-        generator = CandidateGenerator([], rows)
+        generator = CandidateGenerator(
+            [{"name": op} for op in self.allowed_ops],
+            rows,
+        )
         seeds = generator.initial(min(8, self.max_candidates))
         bandit = StrategyBandit(self.db.policy_rows())
         selected_arm = bandit.select()

@@ -21,7 +21,11 @@ def configure_logging(path: str) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="BRAIN-EvoForge autonomous research orchestrator")
-    ap.add_argument("command", choices=["discover", "once", "status", "run"])
+    ap.add_argument(
+        "command",
+        choices=["discover", "once", "status", "run", "live-test-one"],
+        help="live-test-one runs exactly one candidate through the guarded pipeline and then exits",
+    )
     args = ap.parse_args()
     configure_logging(os.getenv("WQ_LOG_PATH", "logs/evoforge.log"))
     email = os.getenv("WQ_BRAIN_EMAIL")
@@ -29,13 +33,22 @@ def main() -> int:
     if not email or not password:
         print("WQ_BRAIN_EMAIL and WQ_BRAIN_PASSWORD are required", file=sys.stderr)
         return 2
-    forge = EvoForge(StateDB(os.getenv("WQ_DB_PATH", "data/evoforge.sqlite3")), BrainClient(email, password))
+
+    forge = EvoForge(
+        StateDB(os.getenv("WQ_DB_PATH", "data/evoforge.sqlite3")),
+        BrainClient(email, password),
+    )
+
     if args.command == "discover":
         print(forge.bootstrap())
         return 0
     if args.command == "once":
         print(forge.run_once())
         return 0
+    if args.command == "live-test-one":
+        result = forge.live_test_one()
+        print(result)
+        return 0 if result.get("ok") else 1
     if args.command == "status":
         print(forge.status())
         return 0
