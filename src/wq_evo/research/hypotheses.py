@@ -6,6 +6,7 @@ import hashlib
 from typing import Any, Iterable
 
 from .genome import build_genome
+from .ontology import infer_field_traits
 from .novelty import novelty_score
 
 
@@ -80,8 +81,7 @@ class HypothesisEngine:
         rows = []
         for row in self.fields:
             text = " ".join(str(row.get(k) or "") for k in ("id", "category", "dataset", "description", "name")).lower()
-            matched_traits = build_genome(str(row.get("id")), self.fields).semantic_traits
-            if trait not in matched_traits:
+            if trait not in infer_field_traits(row):
                 # build_genome only recognizes a field when it is in the catalog;
                 # a direct metadata fallback keeps this path robust.
                 continue
@@ -105,7 +105,7 @@ class HypothesisEngine:
         all_traits = sorted({
             trait
             for row in self.fields
-            for trait in build_genome(str(row.get("id")), self.fields).semantic_traits
+            for trait in infer_field_traits(row)
         })
         # Prefer traits with low current alpha exposure, but keep price_volume as a
         # control/reference family so every campaign does not drift into exotic data.
