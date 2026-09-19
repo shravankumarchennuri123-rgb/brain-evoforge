@@ -1,0 +1,62 @@
+[
+  {
+    "source_id": "wq-brain-overview",
+    "title": "WorldQuant BRAIN: Crowdsourcing Quantitative Research",
+    "source_type": "worldquant_official",
+    "authority_level": 2,
+    "url": "https://www.worldquant.com/brain/",
+    "published_date": null,
+    "topics": ["alpha", "platform", "research"],
+    "notes": "Official overview of BRAIN, its simulation platform, datasets, tools, performance dashboards, and alpha research workflow."
+  },
+  {
+    "source_id": "wq-learn2quant",
+    "title": "Learn2Quant",
+    "source_type": "brain_learn",
+    "authority_level": 2,
+    "url": "https://www.worldquant.com/learn2quant/",
+    "published_date": null,
+    "topics": ["alpha_ideas", "data", "diversification", "risk", "research"],
+    "notes": "Official beginner series covering alpha ideas, data categories, idea types, holding frequencies, delays, diversification, risk, and advanced research techniques."
+  },
+  {
+    "source_id": "wq-iqc-2026",
+    "title": "International Quant Championship 2026",
+    "source_type": "worldquant_official",
+    "authority_level": 2,
+    "url": "https://www.worldquant.com/brain/iqc/",
+    "published_date": "2026-03-17",
+    "topics": ["alpha", "datasets", "operators", "training", "webinars"],
+    "notes": "Official 2026 competition page; training topics include fundamental/model data, price-volume data, submittable alphas, D0 alphas, options/relationship/vector datafields, and newly released datasets."
+  },
+  {
+    "source_id": "wq-iqc-guidelines-2026",
+    "title": "IQC Guidelines",
+    "source_type": "worldquant_official",
+    "authority_level": 2,
+    "url": "https://www.worldquant.com/brain/iqc-guidelines/",
+    "published_date": null,
+    "topics": ["competition", "scoring", "submission"],
+    "notes": "Official competition rules and methodology disclosures. Competition-specific rules must not be assumed to equal all general BRAIN account rules."
+  },
+  {
+    "source_id": "wq-eric-gitau-spotlight",
+    "title": "Consultant Spotlight: Eric Gitau",
+    "source_type": "community",
+    "authority_level": 4,
+    "url": "https://www.worldquant.com/ideas/consultant-spotlight-eric-gitau/",
+    "published_date": null,
+    "topics": ["idea_generation", "research", "literature", "fields", "operators"],
+    "notes": "Practitioner spotlight. Describes a workflow of focusing on a research area, using papers/articles for ideas, refining within available BRAIN datasets, and selecting operators to implement the idea."
+  },
+  {
+    "source_id": "wq-azmi-fauzi-spotlight",
+    "title": "Consultant Spotlight: Azmi Fauzi",
+    "source_type": "community",
+    "authority_level": 4,
+    "url": "https://www.worldquant.com/ideas/consultant-spotlight-azmi-fauzi/",
+    "published_date": null,
+    "topics": ["idea_generation", "research_papers", "events", "datasets", "operators"],
+    "notes": "Practitioner spotlight. Describes connecting market events with fundamental knowledge, using papers/articles to investigate relationships, then selecting suitable datasets/operators and testing expressions."
+  }
+]
