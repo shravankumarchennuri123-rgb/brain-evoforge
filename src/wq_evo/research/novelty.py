@@ -67,7 +67,7 @@ def novelty_score(
     """
     population = list(existing)
     if not population:
-        return NoveltyBreakdown(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0)
+        return NoveltyBreakdown(1.0, 1.0, 1.0, 1.0, 1.0 if settings is not None else 0.0, 1.0, 0.0)
 
     similarities: list[tuple[float, dict[str, float]]] = []
     for other in population:
@@ -85,7 +85,7 @@ def novelty_score(
 
     nearest, nearest_parts = max(similarities, key=lambda x: x[0])
 
-    settings_novelty = 1.0
+    settings_novelty = 0.0
     if settings is not None:
         known = list(existing_settings)
         if known:
