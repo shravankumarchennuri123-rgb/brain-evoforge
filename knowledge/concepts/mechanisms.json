@@ -1,0 +1,62 @@
+[
+  {
+    "mechanism_id": "momentum_continuation",
+    "name": "Intermediate-horizon momentum",
+    "evidence_record": "K-paper-jt93-momentum",
+    "inputs": ["past_returns"],
+    "mechanism": "relative continuation after prior medium-horizon performance",
+    "research_dimensions": ["formation_horizon", "holding_horizon", "cross_sectional_rank", "industry_neutralization"],
+    "brain_mapping_status": "to_map",
+    "notes": "Do not equate with the existing short-term reversal alpha; test as a separate research region."
+  },
+  {
+    "mechanism_id": "earnings_quality_persistence",
+    "name": "Earnings quality and component persistence",
+    "evidence_record": "K-paper-sloan96-accrual",
+    "inputs": ["earnings", "accrual_components", "cash_flow_components"],
+    "mechanism": "different persistence of earnings components",
+    "research_dimensions": ["component_persistence", "cash_vs_accrual", "surprise", "revision"],
+    "brain_mapping_status": "to_map",
+    "notes": "Requires actual BRAIN field semantics before expression generation."
+  },
+  {
+    "mechanism_id": "gross_profitability",
+    "name": "Gross profitability",
+    "evidence_record": "K-paper-novy13-profitability",
+    "inputs": ["gross_profit", "assets"],
+    "mechanism": "profitability-related cross-sectional return differences",
+    "research_dimensions": ["level", "change", "persistence", "relative_rank"],
+    "brain_mapping_status": "to_map",
+    "notes": "Current active alphas already contain profitability exposure, so novelty/exposure controls are required."
+  },
+  {
+    "mechanism_id": "post_earnings_drift",
+    "name": "Post-earnings information diffusion",
+    "evidence_record": "K-paper-bernard89-pead",
+    "inputs": ["earnings_event", "earnings_surprise", "returns"],
+    "mechanism": "delayed price response after earnings information",
+    "research_dimensions": ["event_timing", "surprise", "post_event_persistence", "interaction"],
+    "brain_mapping_status": "to_map",
+    "notes": "BRAIN fields and allowed timing semantics must be verified before use."
+  },
+  {
+    "mechanism_id": "value_momentum_combination",
+    "name": "Value-momentum combination",
+    "evidence_record": "K-paper-amp13-value-momentum",
+    "inputs": ["value", "momentum"],
+    "mechanism": "combining economically distinct characteristics with potentially different return behavior",
+    "research_dimensions": ["orthogonality", "interaction", "conditionality", "portfolio_combination"],
+    "brain_mapping_status": "to_map",
+    "notes": "Combination evidence is not a guarantee of incremental alpha in the BRAIN universe."
+  },
+  {
+    "mechanism_id": "analyst_revision_uncertainty",
+    "name": "Analyst revision under information uncertainty",
+    "evidence_record": "K-paper-barniv09-analyst-revisions",
+    "inputs": ["forecast_revision", "uncertainty_proxy"],
+    "mechanism": "revision information may have different implications conditional on information uncertainty",
+    "research_dimensions": ["revision_direction", "revision_innovation", "uncertainty", "conditionality"],
+    "brain_mapping_status": "to_map",
+    "notes": "Candidate BRAIN fields must be selected from verified live metadata."
+  }
+]
