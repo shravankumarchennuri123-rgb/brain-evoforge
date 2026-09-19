@@ -58,5 +58,15 @@
     "published_date": null,
     "topics": ["idea_generation", "research_papers", "events", "datasets", "operators"],
     "notes": "Practitioner spotlight. Describes connecting market events with fundamental knowledge, using papers/articles to investigate relationships, then selecting suitable datasets/operators and testing expressions."
+  },
+  {
+    "source_id": "wq-research-careers",
+    "title": "Quantitative Finance Careers at WorldQuant",
+    "source_type": "worldquant_official",
+    "authority_level": 2,
+    "url": "https://www.worldquant.com/career-listing/?id=4250853006",
+    "published_date": null,
+    "topics": ["research", "literature", "research_domains", "alpha"],
+    "notes": "Official researcher role description. Includes academic quantitative-finance literature research, alpha development, and identification/design of new research domains."
   }
 ]
