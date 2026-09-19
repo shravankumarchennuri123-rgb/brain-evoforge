@@ -5,7 +5,7 @@ from itertools import combinations
 import hashlib
 from typing import Any, Iterable
 
-from .genome import build_genome
+from .genome import ExpressionSyntaxError, build_genome
 from .ontology import infer_field_traits
 from .novelty import novelty_score
 
@@ -68,7 +68,15 @@ class HypothesisEngine:
     def __init__(self, fields: Iterable[dict[str, Any]], existing_expressions: Iterable[str] = ()):
         self.fields = [x for x in fields if str(x.get("id") or "")]
         self.existing_expressions = list(existing_expressions)
-        self.existing_genomes = [build_genome(x, self.fields) for x in self.existing_expressions]
+        self.existing_genomes = []
+        self.unparsed_existing: list[str] = []
+        for expression in self.existing_expressions:
+            try:
+                self.existing_genomes.append(build_genome(expression, self.fields))
+            except ExpressionSyntaxError:
+                # Alpha endpoints can contain explanatory/prose strings in places
+                # where executable code is absent. Never make research planning crash.
+                self.unparsed_existing.append(expression)
 
     def _trait_counts(self) -> dict[str, int]:
         counts: dict[str, int] = {}
