@@ -23,7 +23,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="BRAIN-EvoForge autonomous research orchestrator")
     ap.add_argument(
         "command",
-        choices=["discover", "once", "status", "run", "live-test-one"],
+        choices=["discover", "research-plan", "once", "status", "run", "live-test-one"],
         help="live-test-one runs exactly one candidate through the guarded pipeline and then exits",
     )
     args = ap.parse_args()
@@ -41,6 +41,9 @@ def main() -> int:
 
     if args.command == "discover":
         print(forge.bootstrap())
+        return 0
+    if args.command == "research-plan":
+        print(forge.research_plan(int(os.getenv("WQ_RESEARCH_PLAN_SIZE", "20"))))
         return 0
     if args.command == "once":
         print(forge.run_once())
