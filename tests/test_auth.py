@@ -20,3 +20,18 @@ def test_persona_inquiry_is_classified_before_401_relogin():
         assert False, "expected PersonaRequiredError"
     except PersonaRequiredError as exc:
         assert "inq_test" in str(exc)
+
+
+def test_adopt_authenticated_session_skips_reauthentication():
+    import requests
+
+    client = BrainClient("x@example.com", "secret")
+    session = requests.Session()
+    client.adopt_authenticated_session(session)
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("adopted session should not re-authenticate")
+
+    client.session.request = fail_if_called
+    result = client.login()
+    assert result == {"reused_authenticated_session": True}
