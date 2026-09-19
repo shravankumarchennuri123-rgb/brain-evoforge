@@ -1,0 +1,93 @@
+[
+  {
+    "record_id": "K-paper-jt93-momentum",
+    "title": "Momentum: intermediate-horizon return continuation",
+    "source_id": "paper-jegadeesh-titman-1993",
+    "source_type": "academic",
+    "authority_level": 3,
+    "topic": "momentum",
+    "claim": "Jegadeesh and Titman document positive returns for strategies that buy past winners and sell past losers over 3- to 12-month holding periods.",
+    "details": "The paper also reports that part of the abnormal return in the first year dissipates during the following two years. EvoForge implication: treat horizon as a research variable rather than assuming that a generic short-term return transformation captures the same mechanism.",
+    "tags": ["momentum", "holding_horizon", "return_continuation"],
+    "source_locator": "https://doi.org/10.1111/j.1540-6261.1993.tb04702.x",
+    "notes": "Academic evidence, not a claim that momentum remains profitable in the user's current BRAIN universe."
+  },
+  {
+    "record_id": "K-paper-sloan96-accrual",
+    "title": "Accrual and cash-flow components of earnings",
+    "source_id": "paper-sloan-1996",
+    "source_type": "academic",
+    "authority_level": 3,
+    "topic": "earnings_quality",
+    "claim": "Sloan finds that the persistence of current earnings depends on the relative magnitudes of accrual and cash-flow components, and reports that stock prices do not fully reflect this information until it affects future earnings.",
+    "details": "EvoForge implication: earnings-level signals can be decomposed into cash-flow and accrual-related mechanisms when suitable BRAIN fields exist.",
+    "tags": ["accruals", "cash_flow", "earnings_quality", "persistence"],
+    "source_locator": "https://ssrn.com/abstract=2598",
+    "notes": "The BRAIN field mapping is a research hypothesis to test, not a statement made by Sloan."
+  },
+  {
+    "record_id": "K-paper-novy13-profitability",
+    "title": "Gross profitability as a return-predictive characteristic",
+    "source_id": "paper-novy-marx-2013",
+    "source_type": "academic",
+    "authority_level": 3,
+    "topic": "profitability",
+    "claim": "Novy-Marx reports that gross profitability measured as gross profits-to-assets has substantial power in explaining the cross section of average returns and that controlling for profitability affects value-strategy performance.",
+    "details": "EvoForge implication: profitability should be represented as a research family with multiple definitions and horizons, while avoiding duplicate exposure to already-tested profitability expressions.",
+    "tags": ["profitability", "gross_profitability", "value", "quality"],
+    "source_locator": "https://doi.org/10.1016/j.jfineco.2013.01.003",
+    "notes": "Does not establish that the same characteristic, field definition or effect is present in the current BRAIN universe."
+  },
+  {
+    "record_id": "K-paper-bernard89-pead",
+    "title": "Post-earnings-announcement drift",
+    "source_id": "paper-bernard-thomas-1989",
+    "source_type": "academic",
+    "authority_level": 3,
+    "topic": "information_diffusion",
+    "claim": "Bernard and Thomas study post-earnings-announcement drift as a delayed price response versus risk-premium question.",
+    "details": "EvoForge implication: earnings information should be investigated through event timing, surprise/revision components and post-event persistence rather than only raw earnings levels.",
+    "tags": ["earnings", "event_study", "information_diffusion", "drift"],
+    "source_locator": "https://doi.org/10.2307/2491062",
+    "notes": "Structured from bibliographic metadata; the implementation notes are EvoForge research deductions."
+  },
+  {
+    "record_id": "K-paper-amp13-value-momentum",
+    "title": "Joint study of value and momentum",
+    "source_id": "paper-asness-moskowitz-pedersen-2013",
+    "source_type": "academic",
+    "authority_level": 3,
+    "topic": "factor_combination",
+    "claim": "Asness, Moskowitz and Pedersen study value and momentum together across eight diverse markets and asset classes and report consistent value and momentum premia across those settings.",
+    "details": "The paper reports strong common factor structure and negative correlation between value and momentum within and across asset classes. EvoForge implication: combination research should test diversification and interaction rather than simply duplicate individual factor signals.",
+    "tags": ["value", "momentum", "diversification", "factor_combination"],
+    "source_locator": "https://ssrn.com/abstract=2174501",
+    "notes": "Cross-asset academic evidence does not prove a particular BRAIN combination is profitable."
+  },
+  {
+    "record_id": "K-paper-barniv09-analyst-revisions",
+    "title": "Analyst forecast revisions under information uncertainty",
+    "source_id": "paper-barniv-cao-2009",
+    "source_type": "academic",
+    "authority_level": 3,
+    "topic": "analyst_revisions",
+    "claim": "Barniv and Cao examine investor responses to analyst forecast revisions under accounting-restatement-based information uncertainty and report that forecast-revision innovation affects the association between investor response and analyst characteristics.",
+    "details": "EvoForge implication: analyst revision signals should be tested conditionally on information-quality or uncertainty proxies where BRAIN fields permit it.",
+    "tags": ["analyst_revisions", "information_uncertainty", "forecast_accuracy", "conditionality"],
+    "source_locator": "https://ssrn.com/abstract=1666951",
+    "notes": "The proposed BRAIN conditional implementation is an EvoForge research hypothesis."
+  },
+  {
+    "record_id": "K-paper-zhang06-underreaction",
+    "title": "Information uncertainty and analyst forecast behavior",
+    "source_id": "paper-zhang-2006",
+    "source_type": "academic",
+    "authority_level": 3,
+    "topic": "analyst_revisions",
+    "claim": "Zhang reports that greater information uncertainty predicts more positive or negative forecast errors and subsequent revisions following good or bad news, respectively, and relates the evidence to analyst underreaction.",
+    "details": "EvoForge implication: disagreement, revision direction, news direction and uncertainty can be treated as separate mechanisms instead of collapsing them into one analyst factor.",
+    "tags": ["analyst_revisions", "underreaction", "information_uncertainty", "news"],
+    "source_locator": "https://ssrn.com/abstract=878374",
+    "notes": "Academic evidence from the cited study; current BRAIN implementation must be independently validated."
+  }
+]
