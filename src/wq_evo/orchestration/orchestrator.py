@@ -26,6 +26,7 @@ from ..storage.db import StateDB
 from .guardrails import SubmissionGuard, env_bool
 from ..research.superalpha import SuperAlphaAdapter
 from ..research.llm import OptionalLLM
+from ..research.hypotheses import HypothesisEngine
 
 LOG = logging.getLogger(__name__)
 
@@ -90,6 +91,33 @@ class EvoForge:
             "operator_count": len(snap.operators),
             "capability": snap.capability,
         }
+
+    def research_plan(self, n: int = 20) -> list[dict[str, Any]]:
+        """Build a dry-run cross-domain research plan.
+
+        This method intentionally stops before simulation, correlation checks,
+        submission, or any write operation. It is the first research-intelligence
+        layer used to decide what deserves scarce BRAIN experiments.
+        """
+        if self.profile is None:
+            self.bootstrap()
+        existing = self.client.list_alphas()
+        existing_expressions: list[str] = []
+        for alpha in existing:
+            regular = alpha.get("regular")
+            if isinstance(regular, dict) and regular.get("code"):
+                existing_expressions.append(str(regular["code"]))
+            elif isinstance(regular, str) and regular.strip():
+                existing_expressions.append(regular.strip())
+
+        engine = HypothesisEngine(self.live_fields, existing_expressions)
+        plan = [x.to_dict() for x in engine.plan(n)]
+        self.db.add_event("INFO", "research_plan_created", {
+            "hypotheses_requested": n,
+            "hypotheses_returned": len(plan),
+            "existing_alpha_expressions": len(existing_expressions),
+        })
+        return plan
 
     def _discover_fields(self, profile: ResearchProfile) -> list[dict[str, Any]]:
         try:
