@@ -1,0 +1,82 @@
+[
+  {
+    "record_id": "K-wq-brain-alpha-definition",
+    "title": "BRAIN alpha definition",
+    "source_id": "wq-brain-overview",
+    "topic": "platform",
+    "claim": "WorldQuant describes an alpha as a mathematical model that seeks to predict future price movements of financial instruments.",
+    "details": "Use this as the platform-level definition. It does not by itself establish that a particular research signal is predictive.",
+    "tags": ["alpha", "definition", "platform"],
+    "source_locator": "https://www.worldquant.com/brain/"
+  },
+  {
+    "record_id": "K-wq-brain-platform",
+    "title": "BRAIN research environment",
+    "source_id": "wq-brain-overview",
+    "topic": "platform",
+    "claim": "BRAIN provides an interactive simulation environment with datasets, tools, performance dashboards and value-added measures for researching alphas.",
+    "details": "This establishes why EvoForge needs a separate platform-knowledge layer and a results-memory layer.",
+    "tags": ["simulation", "datasets", "research"],
+    "source_locator": "https://www.worldquant.com/brain/"
+  },
+  {
+    "record_id": "K-wq-learn2quant-ideas",
+    "title": "Official research-learning scope",
+    "source_id": "wq-learn2quant",
+    "topic": "research_methodology",
+    "claim": "WorldQuant's Learn2Quant series covers generating alpha ideas, building alphas across data categories, idea types, holding frequencies and delays, diversifying the alpha pool, managing risk, and advanced research techniques.",
+    "details": "These topics define initial knowledge categories for the research-intelligence layer.",
+    "tags": ["idea_generation", "data", "holding_frequency", "delay", "diversification", "risk"],
+    "source_locator": "https://www.worldquant.com/learn2quant/"
+  },
+  {
+    "record_id": "K-wq-iqc-2026-training",
+    "title": "2026 BRAIN training topics",
+    "source_id": "wq-iqc-2026",
+    "topic": "training",
+    "claim": "WorldQuant's 2026 IQC training schedule includes sessions on fundamental and model data, price-volume data, building submittable alphas, D0 alphas, options/relationship/vector datafields, and newly released datasets.",
+    "details": "These are competition training topics and should not automatically be treated as universal rules for every BRAIN account.",
+    "tags": ["training", "datasets", "operators", "d0", "vector", "submittable"],
+    "source_locator": "https://www.worldquant.com/brain/iqc/"
+  },
+  {
+    "record_id": "K-wq-iqc-guidelines-specific",
+    "title": "Competition rules are scoped",
+    "source_id": "wq-iqc-guidelines-2026",
+    "topic": "submission",
+    "claim": "WorldQuant's IQC guidelines describe competition-specific scoring and rules, so those rules must be kept separate from general BRAIN platform behavior unless independently verified.",
+    "details": "EvoForge should tag competition-specific knowledge instead of hard-coding it into general submission logic.",
+    "tags": ["iqc", "scoring", "submission", "scope"],
+    "source_locator": "https://www.worldquant.com/brain/iqc-guidelines/"
+  },
+  {
+    "record_id": "K-wq-eric-research-workflow",
+    "title": "Practitioner research workflow",
+    "source_id": "wq-eric-gitau-spotlight",
+    "topic": "research_methodology",
+    "claim": "In a WorldQuant consultant spotlight, Eric Gitau describes focusing on one research area, using research articles and papers for ideas, refining them within BRAIN datasets, and then choosing operators to express the idea mathematically.",
+    "details": "This is practitioner evidence, not a platform rule. It supports the decision to make EvoForge research-question-first rather than field-combination-first.",
+    "tags": ["literature", "fields", "operators", "idea_generation"],
+    "source_locator": "https://www.worldquant.com/ideas/consultant-spotlight-eric-gitau/"
+  },
+  {
+    "record_id": "K-wq-azmi-event-to-expression",
+    "title": "Event-to-research workflow",
+    "source_id": "wq-azmi-fauzi-spotlight",
+    "topic": "research_methodology",
+    "claim": "In a WorldQuant consultant spotlight, Azmi Fauzi describes connecting market events with fundamental knowledge, using papers or articles to investigate relationships, then selecting suitable datasets and operators and testing expressions.",
+    "details": "This is practitioner evidence. It reinforces the intended bridge from economic question to literature to BRAIN implementation.",
+    "tags": ["market_events", "literature", "datasets", "operators", "experiments"],
+    "source_locator": "https://www.worldquant.com/ideas/consultant-spotlight-azmi-fauzi/"
+  },
+  {
+    "record_id": "K-wq-research-role",
+    "title": "Research-domain development",
+    "source_id": "wq-research-careers",
+    "topic": "research_methodology",
+    "claim": "WorldQuant's BRAIN researcher role description includes researching academic quantitative-finance literature, creating and developing alphas, and identifying and designing new research domains.",
+    "details": "This supports treating research-domain coverage as a first-class object in EvoForge rather than only optimizing expression syntax.",
+    "tags": ["research", "literature", "research_domains", "alpha"],
+    "source_locator": "https://www.worldquant.com/career-listing/?id=4250853006"
+  }
+]
