@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Iterable
 
 from .ontology import infer_field_traits
@@ -91,6 +91,8 @@ def _tokenize(expression: str) -> list[_Token]:
     tokens: list[_Token] = []
     pos = 0
     while pos < len(expression):
+        if not expression[pos:].strip():
+            break
         m = _TOKEN_RE.match(expression, pos)
         if not m:
             raise ExpressionSyntaxError(f"Unexpected token at character {pos}: {expression[pos:pos+20]!r}")
