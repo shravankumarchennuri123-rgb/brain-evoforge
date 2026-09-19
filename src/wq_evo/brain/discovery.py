@@ -54,6 +54,38 @@ def discover_profile(alphas: list[dict[str, Any]]) -> ResearchProfile:
         region, universe, delay, inst = env_region, env_universe, int(env_delay), env_inst
     else:
         region, universe, delay, inst = Counter(tuples).most_common(1)[0][0]
+    # Prefer an explicitly configured profile. Otherwise prefer the profile of the
+    # most recently ACTIVE REGULAR alpha; if none exists, use the most recent
+    # REGULAR simulation object. Never select a historical mode by global frequency.
+    if env_region and env_universe and env_delay is not None:
+        region, universe, delay, inst = env_region, env_universe, int(env_delay), env_inst
+    else:
+        def row_time(a: dict[str, Any]) -> str:
+            return str(a.get("dateModified") or a.get("dateCreated") or "")
+
+        active = [
+            a for a in alphas
+            if str(a.get("type", "")).upper() == "REGULAR"
+            and str(a.get("status", "")).upper() == "ACTIVE"
+        ]
+        recent_regular = [
+            a for a in alphas
+            if str(a.get("type", "")).upper() == "REGULAR"
+        ]
+        source = sorted(active or recent_regular, key=row_time, reverse=True)
+        if not source:
+            raise RuntimeError("No REGULAR alpha/simulation profile is available.")
+
+        s = source[0].get("settings") or {}
+        region = str(s.get("region"))
+        universe = str(s.get("universe"))
+        delay = int(s.get("delay"))
+        inst = str(s.get("instrumentType", env_inst))
+
+        # Safety check: reject an incomplete profile instead of guessing.
+        if not region or not universe or s.get("delay") is None:
+            raise RuntimeError("Latest REGULAR profile is incomplete; set WQ_REGION, WQ_UNIVERSE and WQ_DELAY explicitly.")
+
     return ResearchProfile(inst, region, universe, delay, env_decay, env_neut, env_trunc)
 
 
