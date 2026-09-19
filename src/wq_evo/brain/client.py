@@ -87,12 +87,17 @@ class BrainClient:
                 time.sleep(min(60, 2 ** attempt + random.random()))
                 continue
 
+            # BRAIN can return HTTP 401 with an "inquiry" payload when Persona/identity
+            # verification is required. Detect that before the generic 401 re-login path.
+            env = self._decode(r)
+            if r.status_code == 401 and isinstance(env.body, dict) and env.body.get("inquiry"):
+                raise PersonaRequiredError(str(env.body["inquiry"]))
+
             if r.status_code == 401 and allow_401_relogin and not self._did_relogin:
                 self._did_relogin = True
                 self.login(force=True)
                 continue
 
-            env = self._decode(r)
             if r.status_code in (429, 503):
                 delay = self._retry_after(dict(r.headers), 2 ** attempt)
                 if attempt >= self.max_retries:
