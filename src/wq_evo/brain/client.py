@@ -200,7 +200,7 @@ class BrainClient:
         return body if isinstance(body, dict) else {"results": []}
 
     def data_fields_all(self, *, region: str, universe: str, delay: int, instrument_type: str = "EQUITY",
-                        max_rows: int = 5000, page_size: int = 50) -> list[dict[str, Any]]:
+                        max_rows: int = 10000, page_size: int = 50) -> list[dict[str, Any]]:
         """Fetch data fields using a live-safe page size.
         
         Some BRAIN environments return an empty result set for large page sizes
