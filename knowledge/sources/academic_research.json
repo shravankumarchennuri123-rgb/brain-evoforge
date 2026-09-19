@@ -1,0 +1,72 @@
+[
+  {
+    "source_id": "paper-jegadeesh-titman-1993",
+    "title": "Returns to Buying Winners and Selling Losers: Implications for Stock Market Efficiency",
+    "source_type": "academic",
+    "authority_level": 3,
+    "url": "https://doi.org/10.1111/j.1540-6261.1993.tb04702.x",
+    "published_date": "1993-03",
+    "topics": ["momentum", "return_prediction", "behavioral_finance"],
+    "notes": "Journal of Finance, 48(1), 65-91. Structured knowledge is based on the published abstract and metadata."
+  },
+  {
+    "source_id": "paper-sloan-1996",
+    "title": "Do Stock Prices Fully Reflect Information in Accruals and Cash Flows About Future Earnings?",
+    "source_type": "academic",
+    "authority_level": 3,
+    "url": "https://ssrn.com/abstract=2598",
+    "published_date": "1996-05",
+    "topics": ["accruals", "cash_flow", "earnings_quality", "accounting"],
+    "notes": "The Accounting Review, 71(3). Structured knowledge is based on the published abstract and bibliographic metadata."
+  },
+  {
+    "source_id": "paper-novy-marx-2013",
+    "title": "The Other Side of Value: The Gross Profitability Premium",
+    "source_type": "academic",
+    "authority_level": 3,
+    "url": "https://doi.org/10.1016/j.jfineco.2013.01.003",
+    "published_date": "2013-04",
+    "topics": ["profitability", "quality", "value"],
+    "notes": "Journal of Financial Economics, 108(1), 1-28. Structured knowledge is based on the published abstract and metadata."
+  },
+  {
+    "source_id": "paper-bernard-thomas-1989",
+    "title": "Post-Earnings-Announcement Drift: Delayed Price Response or Risk Premium?",
+    "source_type": "academic",
+    "authority_level": 3,
+    "url": "https://doi.org/10.2307/2491062",
+    "published_date": "1989",
+    "topics": ["earnings", "post_earnings_drift", "information_diffusion"],
+    "notes": "Journal of Accounting Research, 27, supplementary issue, 1-36. Structured knowledge is based on JSTOR bibliographic metadata."
+  },
+  {
+    "source_id": "paper-asness-moskowitz-pedersen-2013",
+    "title": "Value and Momentum Everywhere",
+    "source_type": "academic",
+    "authority_level": 3,
+    "url": "https://ssrn.com/abstract=2174501",
+    "published_date": "2013",
+    "topics": ["value", "momentum", "cross_asset", "factor_combination"],
+    "notes": "Journal of Finance, 68(3), 929-985. Structured knowledge is based on the paper abstract and bibliographic metadata."
+  },
+  {
+    "source_id": "paper-barniv-cao-2009",
+    "title": "Does Information Uncertainty Affect Investors' Responses to Analysts' Forecast Revisions?",
+    "source_type": "academic",
+    "authority_level": 3,
+    "url": "https://ssrn.com/abstract=1666951",
+    "published_date": "2009-07",
+    "topics": ["analyst_revisions", "information_uncertainty", "forecast_accuracy"],
+    "notes": "Journal of Accounting and Public Policy, 28(4), 328-348. Structured knowledge is based on the published abstract and metadata."
+  },
+  {
+    "source_id": "paper-zhang-2006",
+    "title": "Information Uncertainty and Analyst Forecast Behavior",
+    "source_type": "academic",
+    "authority_level": 3,
+    "url": "https://ssrn.com/abstract=878374",
+    "published_date": "2006-06",
+    "topics": ["analyst_revisions", "information_uncertainty", "underreaction"],
+    "notes": "Contemporary Accounting Research, 23(2). Structured knowledge is based on the published abstract and metadata."
+  }
+]
