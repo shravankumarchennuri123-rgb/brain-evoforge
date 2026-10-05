@@ -89,11 +89,13 @@ class BrainClient:
     def request(self, method: str, path: str, *, json_body: Any = None, params: dict[str, Any] | None = None,
                 timeout: tuple[float, float] = (15, 90), allow_401_relogin: bool = True) -> ResponseEnvelope:
         url = path if path.startswith("http") else f"{self.base_url}{path}"
+        req_auth = HTTPBasicAuth(self.email, self.password) if path.endswith("/authentication") else None
+
         for attempt in range(self.max_retries + 1):
             try:
                 r = self.session.request(
                     method, url, json=json_body, params=params, timeout=timeout,
-                    auth=HTTPBasicAuth(self.email, self.password),
+                    auth=req_auth,
                 )
             except (requests.ConnectionError, requests.Timeout) as exc:
                 if attempt >= self.max_retries:
