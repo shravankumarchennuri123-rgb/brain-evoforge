@@ -57,6 +57,7 @@ class EvoForge:
         self._corr_fallback = float(os.getenv("WQ_SELF_CORR_FALLBACK", "0.7"))
         self.live_fields: list[dict[str, Any]] = []
         self.llm = OptionalLLM()
+        self.live_operators: list[dict[str, Any]] = []
         self.allowed_ops: list[str] = []
         self.allowed_fields: list[str] = []
 
@@ -69,6 +70,7 @@ class EvoForge:
         snap = discover(self.client)
         self.profile = snap.profile
         self._last_discovery = time.monotonic()
+        self.live_operators = snap.operators
         self.allowed_ops = [str(x.get("name") or x.get("id") or "") for x in snap.operators]
         common_groups = ["industry", "subindustry", "sector", "market"]
         self.live_fields = self._discover_fields(snap.profile)
@@ -174,10 +176,8 @@ class EvoForge:
         """
         self.bootstrap()
 
-        # Fix the generator bug in the general engine as part of the live-test path:
-        # the generator receives the live operator catalog, not an empty list.
         generator = CandidateGenerator(
-            [{"name": op} for op in self.allowed_ops],
+            self.live_operators,
             self.live_fields,
         )
         candidates = generator.initial(8)
@@ -392,7 +392,7 @@ class EvoForge:
     def _generate_candidates(self) -> None:
         rows = self.live_fields
         generator = CandidateGenerator(
-            [{"name": op} for op in self.allowed_ops],
+            self.live_operators,
             rows,
         )
         seeds = generator.initial(min(8, self.max_candidates))
