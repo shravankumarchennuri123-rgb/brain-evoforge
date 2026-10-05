@@ -12,10 +12,18 @@ from ..models import Candidate, CandidateState, Lane, Metrics, utcnow
 class StateDB:
     def __init__(self, path: str):
         Path(path).parent.mkdir(parents=True, exist_ok=True)
-        self.conn = sqlite3.connect(path, check_same_thread=False)
-        self.conn.row_factory = sqlite3.Row
+        self.path = path
+        self.local = threading.local()
         self.lock = threading.Lock()
         self._init()
+
+    @property
+    def conn(self) -> sqlite3.Connection:
+        if not hasattr(self.local, "conn"):
+            conn = sqlite3.connect(self.path)
+            conn.row_factory = sqlite3.Row
+            self.local.conn = conn
+        return self.local.conn
 
     def _init(self) -> None:
         with self.lock, self.conn:
