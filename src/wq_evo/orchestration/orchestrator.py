@@ -698,10 +698,25 @@ class EvoForge:
     def _resume_pending(self) -> None:
         # On restart, never blindly resubmit. Re-read platform status for known alpha IDs.
         pending = self.db.candidates(states=(CandidateState.SUBMIT_PENDING, CandidateState.UNKNOWN, CandidateState.SIM_RUNNING), limit=100)
+
+        # Performance Optimization: Pre-fetch alphas in bulk to prevent N+1 query pattern.
+        alpha_map: dict[str, Any] = {}
+        if any(c.alpha_id for c in pending):
+            try:
+                alphas = self.client.list_alphas()
+                for alpha in alphas:
+                    alpha_id = alpha.get("id") or alpha.get("alpha_id")
+                    if alpha_id:
+                        alpha_map[str(alpha_id)] = alpha
+            except Exception as exc:
+                self.db.add_event("WARNING", "resume_bulk_fetch_failed", {"error": str(exc)})
+
         for c in pending:
             try:
                 if c.alpha_id:
-                    a = self.client.get_alpha(c.alpha_id)
+                    a = alpha_map.get(str(c.alpha_id))
+                    if not a:
+                        a = self.client.get_alpha(c.alpha_id)
                     status = str(a.get("status", "")).upper()
                     if status == "ACTIVE":
                         if c.state != CandidateState.ACTIVE:
