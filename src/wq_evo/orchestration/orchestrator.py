@@ -9,6 +9,8 @@ from collections import defaultdict
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from typing import Any
+import concurrent.futures
+import threading
 
 from ..brain.client import BrainClient
 from ..brain.discovery import discover
@@ -531,13 +533,24 @@ class EvoForge:
         if targets["regular_done"] >= targets["regular_target"]:
             return
         candidates = self.db.candidates(states=(CandidateState.SIM_DONE,), limit=30)
-        for c in candidates:
-            if targets["regular_done"] >= targets["regular_target"]:
-                break
+        if not candidates:
+            return
+
+        submit_lock = threading.Lock()
+        abort_event = threading.Event()
+
+        def process_candidate(c: Candidate) -> None:
+            if abort_event.is_set():
+                return
+            nonlocal targets
+            with submit_lock:
+                if targets["regular_done"] >= targets["regular_target"]:
+                    return
             if not c.alpha_id:
-                continue
+                return
             try:
                 alpha = self.client.get_alpha(c.alpha_id)
+                if abort_event.is_set(): return
                 check_body = self.client.check_alpha(c.alpha_id, timeout_seconds=self.max_poll)
                 check_block = check_body.get("is", {}) if isinstance(check_body, dict) else {}
                 checks = check_block.get("checks") or (alpha.get("is") or {}).get("checks") or []
@@ -548,7 +561,7 @@ class EvoForge:
                     c.state = CandidateState.QUALITY_REJECTED
                     c.reason = f"platform quality gate: fails={checks}; missing={missing}"
                     self.db.update_candidate(c)
-                    continue
+                    return
                 corr_body = self.client.self_correlation(c.alpha_id, timeout_seconds=self.max_poll)
                 c.corr_max = self._corr_max(corr_body)
                 corr_limit = self._corr_fallback
@@ -560,58 +573,66 @@ class EvoForge:
                     c.state = CandidateState.CORR_REJECTED
                     c.reason = f"self-correlation max={c.corr_max}, limit={corr_limit}"
                     self.db.update_candidate(c)
-                    continue
+                    return
 
-                # Discover actual daily submission activity, but do not infer a quota when the
-                # endpoint doesn't expose a machine-readable remaining count.
-                budget_known, budget_remaining = self._submission_budget()
-                decision = self.guard.prewrite(
-                    budget_known=budget_known,
-                    budget_remaining=budget_remaining,
-                    target_remaining=targets["regular_target"] - targets["regular_done"],
-                    check_results=checks,
-                    corr_max=c.corr_max,
-                    metrics=c.metrics,
-                    corr_limit=corr_limit,
-                )
-                if not decision.allowed:
-                    c.state = CandidateState.SUBMIT_QUEUED if self.guard.write_armed else CandidateState.QUALITY_REJECTED
-                    c.reason = "; ".join(decision.reasons)
-                    self.db.update_candidate(c)
-                    self.db.add_event("INFO", "submission_blocked", {"id": c.id, "reasons": decision.reasons})
-                    continue
-                c.state = CandidateState.SUBMIT_PENDING
-                self.db.update_candidate(c)
-                verdict = self.client.submit_alpha(c.alpha_id, timeout_seconds=self.max_poll)
-                if verdict.get("accepted") and verdict.get("status") == "ACTIVE":
-                    c.state = CandidateState.ACTIVE
-                    self.db.update_candidate(c)
-                    self.db.increment_done(self._day_key(), Lane.REGULAR)
+                with submit_lock:
                     targets = self.target_status()
-                    self.db.add_event("INFO", "regular_active", {"id": c.id, "alpha_id": c.alpha_id})
-                elif verdict.get("terminal"):
-                    c.state = CandidateState.SUBMIT_REJECTED
-                    c.reason = str(verdict.get("reason") or verdict.get("status") or "submit rejected")
+                    if targets["regular_done"] >= targets["regular_target"]:
+                        return
+
+                    # Discover actual daily submission activity, but do not infer a quota when the
+                    # endpoint doesn't expose a machine-readable remaining count.
+                    budget_known, budget_remaining = self._submission_budget()
+                    decision = self.guard.prewrite(
+                        budget_known=budget_known,
+                        budget_remaining=budget_remaining,
+                        target_remaining=targets["regular_target"] - targets["regular_done"],
+                        check_results=checks,
+                        corr_max=c.corr_max,
+                        metrics=c.metrics,
+                        corr_limit=corr_limit,
+                    )
+                    if not decision.allowed:
+                        c.state = CandidateState.SUBMIT_QUEUED if self.guard.write_armed else CandidateState.QUALITY_REJECTED
+                        c.reason = "; ".join(decision.reasons)
+                        self.db.update_candidate(c)
+                        self.db.add_event("INFO", "submission_blocked", {"id": c.id, "reasons": decision.reasons})
+                        return
+                    c.state = CandidateState.SUBMIT_PENDING
                     self.db.update_candidate(c)
-                else:
-                    c.state = CandidateState.UNKNOWN
-                    c.reason = "submission verdict did not become terminal"
-                    self.db.update_candidate(c)
+                    verdict = self.client.submit_alpha(c.alpha_id, timeout_seconds=self.max_poll)
+                    if verdict.get("accepted") and verdict.get("status") == "ACTIVE":
+                        c.state = CandidateState.ACTIVE
+                        self.db.update_candidate(c)
+                        self.db.increment_done(self._day_key(), Lane.REGULAR)
+                        targets = self.target_status()
+                        self.db.add_event("INFO", "regular_active", {"id": c.id, "alpha_id": c.alpha_id})
+                    elif verdict.get("terminal"):
+                        c.state = CandidateState.SUBMIT_REJECTED
+                        c.reason = str(verdict.get("reason") or verdict.get("status") or "submit rejected")
+                        self.db.update_candidate(c)
+                    else:
+                        c.state = CandidateState.UNKNOWN
+                        c.reason = "submission verdict did not become terminal"
+                        self.db.update_candidate(c)
             except PersonaRequiredError as exc:
+                abort_event.set()
                 c.state = CandidateState.UNKNOWN
                 c.reason = "Persona verification required; manual completion required"
                 self.db.update_candidate(c)
                 self.db.add_event("ERROR", "persona_required", {"error": str(exc)})
-                break
             except PermissionErrorBrain as exc:
+                abort_event.set()
                 c.state = CandidateState.UNKNOWN
                 c.reason = f"permission boundary: {exc}"
                 self.db.update_candidate(c)
-                break
             except BrainError as exc:
                 c.state = CandidateState.RETRYABLE
                 c.reason = str(exc)
                 self.db.update_candidate(c)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(10, len(candidates))) as executor:
+            list(executor.map(process_candidate, candidates))
 
     def _submission_budget(self) -> tuple[bool, int | None]:
         try:
