@@ -531,13 +531,19 @@ class EvoForge:
         if targets["regular_done"] >= targets["regular_target"]:
             return
         candidates = self.db.candidates(states=(CandidateState.SIM_DONE,), limit=30)
+
+        alpha_ids = [c.alpha_id for c in candidates if c.alpha_id]
+        alphas_batch = self.client.get_alphas(alpha_ids) if alpha_ids else {}
+
         for c in candidates:
             if targets["regular_done"] >= targets["regular_target"]:
                 break
             if not c.alpha_id:
                 continue
             try:
-                alpha = self.client.get_alpha(c.alpha_id)
+                alpha = alphas_batch.get(c.alpha_id)
+                if not alpha:
+                    alpha = self.client.get_alpha(c.alpha_id)
                 check_body = self.client.check_alpha(c.alpha_id, timeout_seconds=self.max_poll)
                 check_block = check_body.get("is", {}) if isinstance(check_body, dict) else {}
                 checks = check_block.get("checks") or (alpha.get("is") or {}).get("checks") or []
@@ -698,10 +704,15 @@ class EvoForge:
     def _resume_pending(self) -> None:
         # On restart, never blindly resubmit. Re-read platform status for known alpha IDs.
         pending = self.db.candidates(states=(CandidateState.SUBMIT_PENDING, CandidateState.UNKNOWN, CandidateState.SIM_RUNNING), limit=100)
+        alpha_ids = [c.alpha_id for c in pending if c.alpha_id]
+        alphas_batch = self.client.get_alphas(alpha_ids) if alpha_ids else {}
+
         for c in pending:
             try:
                 if c.alpha_id:
-                    a = self.client.get_alpha(c.alpha_id)
+                    a = alphas_batch.get(c.alpha_id)
+                    if not a:
+                        a = self.client.get_alpha(c.alpha_id)
                     status = str(a.get("status", "")).upper()
                     if status == "ACTIVE":
                         if c.state != CandidateState.ACTIVE:

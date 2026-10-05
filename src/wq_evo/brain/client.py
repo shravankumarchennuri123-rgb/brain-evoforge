@@ -279,6 +279,31 @@ class BrainClient:
         body = self.get_json(f"/alphas/{alpha_id}")
         return body if isinstance(body, dict) else {}
 
+    def get_alphas(self, alpha_ids: list[str]) -> dict[str, dict[str, Any]]:
+        if not alpha_ids:
+            return {}
+
+        all_results: dict[str, dict[str, Any]] = {}
+        chunk_size = 50
+        for i in range(0, len(alpha_ids), chunk_size):
+            chunk = alpha_ids[i:i + chunk_size]
+            try:
+                body = self.get_json("/alphas", params={"alpha": ",".join(chunk)})
+                if isinstance(body, dict):
+                    results = body.get("results", [])
+                    if isinstance(results, list):
+                        for r in results:
+                            if isinstance(r, dict) and "id" in r:
+                                all_results[str(r["id"])] = r
+                elif isinstance(body, list):
+                    for r in body:
+                        if isinstance(r, dict) and "id" in r:
+                            all_results[str(r["id"])] = r
+            except Exception as e:
+                LOG.warning("Failed to fetch batch alphas: %s", e)
+
+        return all_results
+
     def check_alpha(self, alpha_id: str, *, timeout_seconds: int = 600) -> dict[str, Any]:
         deadline = time.monotonic() + timeout_seconds
         while time.monotonic() < deadline:
